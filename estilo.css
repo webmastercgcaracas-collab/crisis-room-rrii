@@ -12,7 +12,7 @@
 body {
     background-color: var(--bg-color);
     /* Capa oscura al 72% sobre el mapa para asegurar legibilidad */
-    background-image: linear-gradient(rgba(15, 23, 42, 0.72), rgba(15, 23, 42, 0.82)), url('fondo-mapa.jpg');
+    background-image: linear-gradient(rgba(15, 23, 42, 0.72), rgba(15, 23, 42, 0.82)), url('fondo-mapa.jfif');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
