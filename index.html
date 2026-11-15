@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crisis Room | Simulación de 5 Niveles</title>
+    <link rel="stylesheet" href="estilo.css">
+    <style>
+        .timer-container {
+            background-color: var(--border-color, #334155);
+            border-radius: 4px;
+            height: 8px;
+            width: 100%;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .timer-bar {
+            background-color: #38bdf8;
+            height: 100%;
+            width: 100%;
+            transition: width 1s linear;
+        }
+        .timer-text {
+            font-size: 0.85rem;
+            color: #38bdf8;
+            margin-bottom: 15px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+        }
+        .stats-progreso {
+            background: #1e293b;
+            border: 1px solid var(--border-color, #334155);
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.85rem;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            color: #f1f5f9;
+        }
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+        }
+        .rango-badge {
+            color: #38bdf8;
+            font-weight: bold;
+        }
+        .alerta-intentos {
+            color: #fbbf24;
+            font-weight: bold;
+        }
+        .lockout-box {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid #ef4444;
+            border-radius: 8px;
+            padding: 25px;
+            text-align: center;
+            color: #f87171;
+        }
+        .lockout-box h2 {
+            color: #ef4444;
+            margin-top: 0;
+        }
+        .countdown-lock {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #ffffff;
+            background: #991b1b;
+            padding: 10px 15px;
+            border-radius: 6px;
+            display: inline-block;
+            margin: 15px 0;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            padding: 30px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            color: #f1f5f9;
+        }
+        .modal-card input {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0;
+            background: #0f172a;
+            border: 1px solid #475569;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- MODAL DE IDENTIFICACIÓN INICIAL -->
+    <div id="modal-identificacion" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <!-- LOGO DE VISUAL FORMULA -->
+            <img src="logo-vf.jpg" alt="Visual Formula" style="width: 65px; height: auto; margin-bottom: 10px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
+            
+            <h2>🛡️ Acreditación Diplomática</h2>
+            <p style="font-size: 0.9rem; color: #94a3b8;">Ingrese su Nombre Completo o Código de Estudiante para registrar su participación en el sistema de la Sala de Crisis de 5 Fases.</p>
+            <input type="text" id="input-nombre-estudiante" placeholder="Ej. Carlos Mendoza (ID: 4021)" autocomplete="off">
+            <button class="btn primary" onclick="guardarIdentidad()">Registrarse e Ingresar</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Panel Superior -->
+        <div class="stats-progreso" id="panel-superior">
+            <div class="stats-row">
+                <span>👤 Analista: <strong id="nombre-ui" style="color: #38bdf8;">Invitado</strong></span>
+                <span>🏆 Victorias: <strong id="victorias-ui">0</strong></span>
+            </div>
+            <div class="stats-row">
+                <span>🎖️ Rango: <span id="rango-ui" class="rango-badge">Agregado Junior</span></span>
+                <span>🔄 Intentos: <strong id="intentos-totales-ui">0</strong></span>
+            </div>
+            <div class="stats-row">
+                <span>⚡ Anticipación: <strong id="tiempo-base-ui">10s</strong></span>
+                <span>⚠️ Fallos: <span id="fallos-ui" class="alerta-intentos">0 / 3</span></span>
+            </div>
+        </div>
+
+        <!-- Barra de KPIs -->
+        <div class="stats-bar" id="panel-kpis">
+            <div class="stat"><span>Capital Político:</span> <strong id="capital">50%</strong></div>
+            <div class="stat"><span>Estabilidad Bilateral:</span> <strong id="estabilidad">50%</strong></div>
+        </div>
+
+        <main class="card game-card">
+            <div id="story-container">
+                <span id="escena-tag" class="tag">Nivel 1 de 5</span>
+                
+                <div class="timer-text">
+                    <span>⏱️ Margen de reacción informado por Inteligencia:</span>
+                    <strong id="time-left">10s</strong>
+                </div>
+                <div class="timer-container">
+                    <div id="timer-bar" class="timer-bar"></div>
+                </div>
+
+                <h2 id="titulo-escena">Cargando escenario...</h2>
+                <p id="texto-escena">Espere un momento...</p>
+                
+                <div id="choices-container" class="choices"></div>
+            </div>
+
+            <!-- Contenedor de Bloqueo -->
+            <div id="lockout-container" class="lockout-box" style="display: none;">
+                <h2>🚫 Credenciales Diplomáticas Suspendidas</h2>
+                <p>Has acumulado <strong>3 fracasos consecutivos</strong> en la Sala de Crisis. Tu acceso ha sido revocado temporalmente.</p>
+                <div class="countdown-lock" id="lockout-timer">Calculando tiempo...</div>
+                <p style="font-size: 0.85rem; color: #cbd5e1;">Repasa los fundamentos de Política Exterior antes de tu reincorporación.</p>
+            </div>
+        </main>
+
+        <div class="footer-nav">
+            <a href="index.html" class="btn secondary">← Reiniciar simulación</a>
+        </div>
+    </div>
+
+    <script>
+        const MAX_FALLOS_PERMITIDOS = 3; 
+        const DIAS_PENALIZACION = 2;     
+        const DISCORD_WEBHOOK_URL = "AQUÍ_PEGA_TU_URL_DE_DISCORD"; // Reemplaza con tu URL real
+
+        let nombreJugador = localStorage.getItem('rrii_nombre_jugador') || "";
+        let partidasGanadas = parseInt(localStorage.getItem('rrii_victorias')) || 0;
+        let intentosTotales = parseInt(localStorage.getItem('rrii_intentos_totales')) || 0;
+        let fallosConsecutivos = parseInt(localStorage.getItem('rrii_fallos_consecutivos')) || 0;
+        let bloqueoHasta = parseInt(localStorage.getItem('rrii_bloqueo_hasta')) || 0;
+
+        let TIEMPO_MAXIMO = Math.min(22, 10 + (partidasGanadas * 2));
+
+        function obtenerRango(victorias) {
+            if (victorias >= 5) return "🌟 Embajador Plenipotenciario";
+            if (victorias >= 3) return "🏛️ Consejero de Estado";
+            if (victorias >= 1) return "💼 Oficial de Enlace Senior";
+            return "📋 Agregado Junior";
+        }
+
+        function verificarIdentidad() {
+            if (!nombreJugador || nombreJugador.trim() === "") {
+                document.getElementById("modal-identificacion").style.display = "flex";
+                return false;
+            }
+            return true;
+        }
+
+        function guardarIdentidad() {
+            const input = document.getElementById("input-nombre-estudiante").value.trim();
+            if (input.length < 3) {
+                alert("Ingrese un nombre o código válido.");
+                return;
+            }
+            localStorage.setItem('rrii_nombre_jugador', input);
+            nombreJugador = input;
+            document.getElementById("modal-identificacion").style.display = "none";
+            iniciarJuegoTrasValidacion();
+        }
+
+        async function enviarReporteDiscord(estadoPartida, detallesExtra) {
+            if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes("AQUÍ_PEGA")) return;
+
+            let rangoActual = obtenerRango(partidasGanadas);
+            const payload = {
+                username: "Sala de Crisis | Bot 5 Fases",
+                avatar_url: "https://i.imgur.com/4M34hi2.png",
+                embeds: [{
+                    title: `🛡️ Reporte de Misión: ${estadoPartida}`,
+                    color: estadoPartida.includes("Victoria") ? 3066993 : 15158332,
+                    fields: [
+                        { name: "👤 Analista", value: nombreJugador, inline: true },
+                        { name: "🎖️ Rango", value: rangoActual, inline: true },
+                        { name: "🏆 Victorias", value: `${partidasGanadas}`, inline: true },
+                        { name: "🔄 Intentos", value: `${intentosTotales}`, inline: true },
+                        { name: "⚠️ Fallos", value: `${fallosConsecutivos} / ${MAX_FALLOS_PERMITIDOS}`, inline: true },
+                        { name: "📊 Detalle", value: detallesExtra, inline: false }
+                    ],
+                    timestamp: new Date().toISOString()
+                }]
+            };
+
+            try {
+                await fetch(DISCORD_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (error) {
+                console.error("Error Webhook:", error);
+            }
+        }
+
+        function verificarBloqueo() {
+            const ahora = Date.now();
+            if (bloqueoHasta > ahora) {
+                document.getElementById("story-container").style.display = "none";
+                document.getElementById("panel-kpis").style.display = "none";
+                document.getElementById("lockout-container").style.display = "block";
+                actualizarRelojBloqueo();
+                setInterval(actualizarRelojBloqueo, 1000);
+                return true;
+            } else if (bloqueoHasta !== 0 && bloqueoHasta <= ahora) {
+                localStorage.removeItem('rrii_bloqueo_hasta');
+                fallosConsecutivos = 0;
+                localStorage.setItem('rrii_fallos_consecutivos', 0);
+            }
+            return false;
+        }
+
+        function actualizarRelojBloqueo() {
+            const ahora = Date.now();
+            const restante = bloqueoHasta - ahora;
+            if (restante <= 0) { window.location.reload(); return; }
+            const dias = Math.floor(restante / (1000 * 60 * 60 * 24));
+            const horas = Math.floor((restante / (1000 * 60 * 60)) % 24);
+            const minutos = Math.floor((restante / 1000 / 60) % 60);
+            const segundos = Math.floor((restante / 1000) % 60);
+            document.getElementById("lockout-timer").innerText = `Reincorporación en: ${dias}d ${horas}h ${minutos}m ${segundos}s`;
+        }
+
+        function actualizarPanelSuperior() {
+            document.getElementById("nombre-ui").innerText = nombreJugador;
+            document.getElementById("victorias-ui").innerText = partidasGanadas;
+            document.getElementById("tiempo-base-ui").innerText = TIEMPO_MAXIMO + "s";
+            document.getElementById("rango-ui").innerText = obtenerRango(partidasGanadas);
+            document.getElementById("intentos-totales-ui").innerText = intentosTotales;
+            document.getElementById("fallos-ui").innerText = `${fallosConsecutivos} / ${MAX_FALLOS_PERMITIDOS}`;
+        }
+
+        // ==========================================
+        // ÁRBOL DE DECISIONES DE 5 NIVELES
+        // ==========================================
+        const escenas = {
+            1: {
+                tag: "Nivel 1 de 5 - El Atentado Inicial",
+                titulo: "Incidente en el Mar del Norte",
+                texto: "Un buque británico ha sufrido un bombardeo hostil. El Primer Ministro Trowbridge exige una respuesta militar inmediata contra un blanco iraní. Sin embargo, los informes de inteligencia internos sugieren una operación de bandera falsa de un actor non estatal.",
+                opciones: [
+                    { texto: "A) Respaldar públicamente al Primer Ministro para mantener la 'Relación Especial'.", siguiente: "derrota1", cap: -20, est: +15 },
+                    { texto: "B) Filtrar las dudas de inteligencia a la prensa a espaldas de Downing Street.", siguiente: 2, cap: +15, est: -30 }
+                ]
+            },
+            2: {
+                tag: "Nivel 2 de 5 - Comisión de Seguridad",
+                titulo: "La Presión del Despacho Oficial",
+                texto: "Tu filtración llegó a los diarios principales. Downing Street entra en furia institucional y te acusa de traición en televisión abierta. Se convoca una comisión parlamentaria urgente.",
+                opciones: [
+                    { texto: "A) Asumir la culpa institucionalmente para proteger la imagen de la Embajada.", siguiente: "derrota2", cap: -30, est: +10 },
+                    { texto: "B) Presentar pruebas irrefutables ante el comité de seguridad parlamentaria.", siguiente: 3, cap: +25, est: +5 }
+                ]
+            },
+            3: {
+                tag: "Nivel 3 de 5 - Amenaza en Ormuz",
+                titulo: "Movimientos en el Estrecho de Ormuz",
+                texto: "Has salvado el primer filtro con pruebas sólidas, pero satélites militares detectan que una fragata iraní se aproxima de forma hostil a las rutas comerciales. El tiempo apremia.",
+                opciones: [
+                    { texto: "A) Lanzar un ultimátum militar público en conjunto con la flota británica.", siguiente: "derrota3", cap: -15, est: -20 },
+                    { texto: "B) Abrir un canal de negociación secreto (backchannel) con diplomáticos moderados de Teherán.", siguiente: 4, cap: +20, est: +25 }
+                ]
+            },
+            4: {
+                tag: "Nivel 4 de 5 - El Consejo de Seguridad",
+                titulo: "Debate en la Plenaria de la ONU",
+                texto: "Los aliados exigen una postura definitiva: o se aprueba el uso de la fuerza o se veta. Tienes la oportunidad de impulsar una moción de procedimiento para ganar tiempo.",
+                opciones: [
+                    { texto: "A) Ceder a las presiones unilaterales y romper el diálogo.", siguiente: "derrota4", cap: -25, est: -30 },
+                    { texto: "B) Impulsar una moción de procedimiento para ganar tiempo y negociar en la cumbre.", siguiente: 5, cap: +20, est: +20 }
+                ]
+            },
+            5: {
+                tag: "Nivel 5 de 5 - Cumbre de Ratificación",
+                titulo: "El Tratado de Estabilidad Estratégica",
+                texto: "Has llegado a la fase definitiva. Las delegaciones están listas para firmar, pero Irán exige una cláusula de última hora sobre soberanía en el estrecho.",
+                opciones: [
+                    { texto: "A) Rechazar la exigencia y suspender las conversaciones de forma abrupta.", siguiente: "derrota5", cap: -30, est: -20 },
+                    { texto: "B) Aceptar una enmienda moderada de supervisión conjunta con la ONU.", siguiente: "finVictoria", cap: +35, est: +35 }
+                ]
+            },
+            timeout: {
+                tag: "Penalización por Inacción",
+                titulo: "Parálisis Diplomática",
+                texto: "Te demoraste demasiado en tomar una decisión. El gabinete tomó el control sin tu aval y fuiste relevado de tus funciones.",
+                esDerrota: true,
+                opciones: []
+            },
+            derrota1: { tag: "Derrota en Fase 1", titulo: "Escalada Bélica Prematura", texto: "El ataque militar avanzó sin confirmación sólida de inteligencia. La crisis escaló sin control.", esDerrota: true, opciones: [] },
+            derrota2: { tag: "Derrota en Fase 2", titulo: "Colapso Institucional", texto: "Al asumir la culpa, perdiste toda credibilidad ante Washington y Londres. Fuiste destituido.", esDerrota: true, opciones: [] },
+            derrota3: { tag: "Derrota en Fase 3", titulo: "Emboscada Diplomática", texto: "El ultimátum público cerró las puertas al diálogo y provocó un enfrentamiento naval indeseado.", esDerrota: true, opciones: [] },
+            derrota4: { tag: "Derrota en Fase 4", titulo: "Guerra Regional Innecesaria", texto: "Ceder a último momento arruinó todo el trabajo de inteligencia previo. La región colapsó.", esDerrota: true, opciones: [] },
+            derrota5: { tag: "Derrota en Fase 5", titulo: "Ruptura en la Cumbre", texto: "La suspensión abrupta de las conversaciones encendió nuevamente las hostilidades en el estrecho.", esDerrota: true, opciones: [] },
+            finVictoria: { 
+                tag: "Victoria Académica Absoluta", 
+                titulo: "Estratega Maestro de la Crisis", 
+                texto: "¡Magnífica gestión! Superaste las 5 fases combinando inteligencia rigurosa, diplomacia parlamentaria, canales ocultos y ratificación multilateral. ¡Has dominado el Análisis de Política Exterior (FPA)!", 
+                esVictoria: true, 
+                opciones: [] 
+            }
+        };
+
+        let capitalPolitico = 50;
+        let estabilidadBilateral = 50;
+        let timeLeft = TIEMPO_MAXIMO;
+        let timerInterval = null;
+
+        function iniciarTimer() {
+            clearInterval(timerInterval);
+            timeLeft = TIEMPO_MAXIMO;
+            actualizarDisplayTimer();
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                actualizarDisplayTimer();
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    capitalPolitico = Math.max(0, capitalPolitico - 25);
+                    estabilidadBilateral = Math.max(0, estabilidadBilateral - 25);
+                    actualizarStats();
+                    cargarEscena("timeout");
+                }
+            }, 1000);
+        }
+
+        function actualizarDisplayTimer() {
+            document.getElementById("time-left").innerText = timeLeft + "s";
+            const porcentaje = (timeLeft / TIEMPO_MAXIMO) * 100;
+            document.getElementById("timer-bar").style.width = porcentaje + "%";
+        }
+
+        function procesarResultadoFinal(esVictoria) {
+            if (esVictoria) {
+                partidasGanadas++;
+                fallosConsecutivos = 0; 
+                localStorage.setItem('rrii_victorias', partidasGanadas);
+                localStorage.setItem('rrii_fallos_consecutivos', 0);
+                enviarReporteDiscord("Victoria Académica (5 Fases)", "El analista superó con éxito las 5 fases de la simulación.");
+            } else {
+                fallosConsecutivos++;
+                localStorage.setItem('rrii_fallos_consecutivos', fallosConsecutivos);
+
+                if (fallosConsecutivos >= MAX_FALLOS_PERMITIDOS) {
+                    const milisegundosCastigo = DIAS_PENALIZACION * 24 * 60 * 60 * 1000;
+                    bloqueoHasta = Date.now() + milisegundosCastigo;
+                    localStorage.setItem('rrii_bloqueo_hasta', bloqueoHasta);
+                    enviarReporteDiscord("Suspensión Temporal (Bloqueo)", `Límite alcanzado tras fallar en las secuencias. Suspendido por ${DIAS_PENALIZACION} días.`);
+                } else {
+                    enviarReporteDiscord("Fallo en Secuencia", `Derrota acumulada en el intento ${fallosConsecutivos} de ${MAX_FALLOS_PERMITIDOS}.`);
+                }
+            }
+            actualizarPanelSuperior();
+        }
+
+        function cargarEscena(id) {
+            clearInterval(timerInterval);
+            const escena = escenas[id];
+            
+            document.getElementById("escena-tag").innerText = escena.tag;
+            document.getElementById("titulo-escena").innerText = escena.titulo;
+            document.getElementById("texto-escena").innerText = escena.texto;
+
+            const container = document.getElementById("choices-container");
+            container.innerHTML = "";
+
+            const timerTextElem = document.querySelector(".timer-text");
+            const timerContainerElem = document.querySelector(".timer-container");
+
+            if (escena.opciones.length === 0) {
+                timerTextElem.style.display = "none";
+                timerContainerElem.style.display = "none";
+                
+                if (escena.esVictoria) {
+                    procesarResultadoFinal(true);
+                    container.innerHTML = `<button class="btn primary" onclick="reiniciarJuego()">✅ Misión Cumplida / Reintentar</button>`;
+                } else {
+                    procesarResultadoFinal(false);
+                    if (fallosConsecutivos >= MAX_FALLOS_PERMITIDOS) {
+                        container.innerHTML = `<button class="btn secondary" onclick="window.location.reload()">⚠️ Ver estado de suspensión</button>`;
+                    } else {
+                        container.innerHTML = `<button class="btn primary" onclick="reiniciarJuego()">🔄 Reintentar Secuencia (Te quedan ${MAX_FALLOS_PERMITIDOS - fallosConsecutivos} intentos)</button>`;
+                    }
+                }
+                return;
+            } else {
+                timerTextElem.style.display = "flex";
+                timerContainerElem.style.display = "block";
+                iniciarTimer();
+            }
+
+            escena.opciones.forEach(op => {
+                const btn = document.createElement("button");
+                btn.className = "btn choice-btn";
+                btn.innerText = op.texto;
+                btn.onclick = () => {
+                    clearInterval(timerInterval);
+                    capitalPolitico = Math.max(0, Math.min(100, capitalPolitico + (op.cap || 0)));
+                    estabilidadBilateral = Math.max(0, Math.min(100, estabilidadBilateral + (op.est || 0)));
+                    actualizarStats();
+                    cargarEscena(op.siguiente);
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function actualizarStats() {
+            document.getElementById("capital").innerText = capitalPolitico + "%";
+            document.getElementById("estabilidad").innerText = estabilidadBilateral + "%";
+        }
+
+        function reiniciarJuego() {
+            window.location.reload();
+        }
+
+        function iniciarJuegoTrasValidacion() {
+            actualizarPanelSuperior();
+            if (!verificarBloqueo()) {
+                intentosTotales++;
+                localStorage.setItem('rrii_intentos_totales', intentosTotales);
+                actualizarPanelSuperior();
+                actualizarStats();
+                cargarEscena(1);
+            }
+        }
+
+        if (verificarIdentidad()) {
+            iniciarJuegoTrasValidacion();
+        }
+    </script>
+</body>
+</html>
