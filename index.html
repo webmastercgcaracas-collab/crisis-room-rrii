@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crisis Room | Simulación de 5 Niveles</title>
+    <link rel="stylesheet" href="estilo.css">
+    <style>
+        .timer-container {
+            background-color: var(--border-color, #334155);
+            border-radius: 4px;
+            height: 8px;
+            width: 100%;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .timer-bar {
+            background-color: #38bdf8;
+            height: 100%;
+            width: 100%;
+            transition: width 1s linear;
+        }
+        .timer-text {
+            font-size: 0.85rem;
+            color: #38bdf8;
+            margin-bottom: 15px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+        }
+        .stats-progreso {
+            background: #1e293b;
+            border: 1px solid var(--border-color, #334155);
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.85rem;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            color: #f1f5f9;
+        }
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+        }
+        .rango-badge {
+            color: #38bdf8;
+            font-weight: bold;
+        }
+        .alerta-intentos {
+            color: #fbbf24;
+            font-weight: bold;
+        }
+        .lockout-box {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid #ef4444;
+            border-radius: 8px;
+            padding: 25px;
+            text-align: center;
+            color: #f87171;
+        }
+        .lockout-box h2 {
+            color: #ef4444;
+            margin-top: 0;
+        }
+        .countdown-lock {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #ffffff;
+            background: #991b1b;
+            padding: 10px 15px;
+            border-radius: 6px;
+            display: inline-block;
+            margin: 15px 0;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            padding: 30px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            color: #f1f5f9;
+        }
+        .modal-card input {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0;
+            background: #0f172a;
+            border: 1px solid #475569;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- MODAL DE IDENTIFICACIÓN INICIAL -->
+    <div id="modal-identificacion" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <h2>🛡️ Acreditación Diplomática</h2>
+            <p style="font-size: 0.9rem; color: #94a3b8;">Ingrese su Nombre Completo o Código de Estudiante para registrar su participación en el sistema de la Sala de Crisis de 5 Fases.</p>
+            <input type="text" id="input-nombre-estudiante" placeholder="Ej. Carlos Mendoza (ID: 4021)" autocomplete="off">
+            <button class="btn primary" onclick="guardarIdentidad()">Registrarse e Ingresar</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Panel Superior -->
+        <div class="stats-progreso" id="panel-superior">
+            <div class="stats-row">
+                <span>👤 Analista: <strong id="nombre-ui" style="color: #38bdf8;">Invitado</strong></span>
+                <span>🏆 Victorias: <strong id="victorias-ui">0</strong></span>
+            </div>
+            <div class="stats-row">
+                <span>🎖️ Rango: <span id="rango-ui" class="rango-badge">Agregado Junior</span></span>
+                <span>🔄 Intentos: <strong id="intentos-totales-ui">0</strong></span>
+            </div>
+            <div class="stats-row">
+                <span>⚡ Anticipación: <strong id="tiempo-base-ui">10s</strong></span>
+                <span>⚠️ Fallos: <span id="fallos-ui" class="alerta-intentos">0 / 3</span></span>
+            </div>
+        </div>
+
+        <!-- Barra de KPIs -->
+        <div class="stats-bar" id="panel-kpis">
+            <div class="stat"><span>Capital Político:</span> <strong id="capital">50%</strong></div>
+            <div class="stat"><span>Estabilidad Bilateral:</span> <strong id="estabilidad">50%</strong></div>
+        </div>
+
+        <main class="card game-card">
+            <div id="story-container">
+                <span id="escena-tag" class="tag">Nivel 1 de 5</span>
+                
+                <div class="timer-text">
+                    <span>⏱️ Margen de reacción informado por Inteligencia:</span>
+                    <strong id="time-left">10s</strong>
+                </div>
+                <div class="timer-container">
+                    <div id="timer-bar" class="timer-bar"></div>
+                </div>
+
+                <h2 id="titulo-escena">Cargando escenario...</h2>
+                <p id="texto-escena">Espere un momento...</p>
+                
+                <div id="choices-container" class="choices"></div>
+            </div>
+
+            <!-- Contenedor de Bloqueo -->
+            <div id="lockout-container" class="lockout-box" style="display: none;">
+                <h2>🚫 Credenciales Diplomáticas Suspendidas</h2>
+                <p>Has acumulado <strong>3 fracasos consecutivos</strong> en la Sala de Crisis. Tu acceso ha sido revocado temporalmente.</p>
+                <div class="countdown-lock" id="lockout-timer">Calculando tiempo...</div>
+                <p style="font-size: 0.85rem; color: #cbd5e1;">Repasa los fundamentos de Política Exterior antes de tu reincorporación.</p>
+            </div>
+        </main>
+
+        <div class="footer-nav">
+            <a href="index.html" class="btn secondary">← Reiniciar simulación</a>
+        </div>
+    </div>
+
+    <script>
+        const MAX_FALLOS_PERMITIDOS = 3; 
+        const DIAS_PENALIZACION = 2;     
+        const DISCORD_WEBHOOK_URL = "AQUÍ_PEGA_TU_URL_DE_DISCORD"; // Reemplaza con tu URL real
+
+        let nombreJugador = localStorage.getItem('rrii_nombre_jugador') || "";
+        let partidasGanadas = parseInt(localStorage.getItem('rrii_victorias')) || 0;
+        let intentosTotales = parseInt(localStorage.getItem('rrii_intentos_totales')) || 0;
+        let fallosConsecutivos = parseInt(localStorage.getItem('rrii_fallos_consecutivos')) || 0;
+        let bloqueoHasta = parseInt(localStorage.getItem('rrii_bloqueo_hasta')) || 0;
+
+        let TIEMPO_MAXIMO = Math.min(22, 10 + (partidasGanadas * 2));
+
+        function obtenerRango(victorias) {
+            if (victorias >= 5) return "🌟 Embajador Plenipotenciario";
+            if (victorias >= 3) return "🏛️ Consejero de Estado";
+            if (victorias >= 1) return "💼 Oficial de Enlace Senior";
+            return "📋 Agregado Junior";
+        }
+
+        function verificarIdentidad() {
+            if (!nombreJugador || nombreJugador.trim() === "") {
+                document.getElementById("modal-identificacion").style.display = "flex";
+                return false;
+            }
+            return true;
+        }
+
+        function guardarIdentidad() {
+            const input = document.getElementById("input-nombre-estudiante").value.trim();
+            if (input.length < 3) {
+                alert("Ingrese un nombre o código válido.");
+                return;
+            }
+            localStorage.setItem('rrii_nombre_jugador', input);
+            nombreJugador = input;
+            document.getElementById("modal-identificacion").style.display = "none";
+            iniciarJuegoTrasValidacion();
+        }
+
+        async function enviarReporteDiscord(estadoPartida, detallesExtra) {
+            if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes("AQUÍ_PEGA")) return;
+
+            let rangoActual = obtenerRango(partidasGanadas);
+            const payload = {
+                username: "Sala de Crisis | Bot 5 Fases",
+                avatar_url: "https://i.imgur.com/4M34hi2.png",
+                embeds: [{
+                    title: `🛡️ Reporte de Misión: ${estadoPartida}`,
+                    color: estadoPartida.includes("Victoria") ? 3066993 : 15158332,
+                    fields: [
+                        { name: "👤 Analista", value: nombreJugador, inline: true },
+                        { name: "🎖️ Rango", value: rangoActual, inline: true },
+                        { name: "🏆 Victorias", value: `${partidasGanadas}`, inline: true },
+                        { name: "🔄 Intentos", value: `${intentosTotales}`, inline: true },
+                        { name: "⚠️ Fallos", value: `${fallosConsecutivos} / ${MAX_FALLOS_PERMITIDOS}`, inline: true },
+                        { name: "📊 Detalle", value: detallesExtra, inline: false }
+                    ],
+                    timestamp: new Date().toISOString()
+                }]
+            };
+
+            try {
+                await fetch(DISCORD_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (error) {
+                console.error("Error Webhook:", error);
+            }
+        }
+
+        function verificarBloqueo() {
+            const ahora = Date.now();
+            if (bloqueoHasta > ahora) {
+                document.getElementById("story-container").style.display = "none";
+                document.getElementById("panel-kpis").style.display = "none";
+                document.getElementById("lockout-container").style.display = "block";
+                actualizarRelojBloqueo();
+                setInterval(actualizarRelojBloqueo, 1000);
+                return true;
+            } else if (bloqueoHasta !== 0 && bloqueoHasta <= ahora) {
+                localStorage.removeItem('rrii_bloqueo_hasta');
+                fallosConsecut
